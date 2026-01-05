@@ -1,0 +1,5 @@
+{
+  "name": "MagicLens",
+  "description": "An automotive industry knowledge base and analysis tool inspired by Apple design principles, powered by Gemini.",
+  "requestFramePermissions": []
+}
