@@ -60,10 +60,12 @@ const App: React.FC = () => {
 
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
   const [avatarName, setAvatarName] = useState(() => localStorage.getItem('avatar_name') || '智擎所长');
+  const [isEditingName, setIsEditingName] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -87,6 +89,13 @@ const App: React.FC = () => {
       });
     }
   }, [chatHistory, isAnalyzing]);
+
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
 
   const filteredSources = useMemo(() => {
     return currentPartitionId === 'all' ? sources : sources.filter(s => s.partitionId === currentPartitionId);
@@ -135,7 +144,6 @@ const App: React.FC = () => {
     });
   };
 
-  // 全局拖拽拦截逻辑
   const onDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -178,13 +186,11 @@ const App: React.FC = () => {
     }
   };
 
-  // 内部卡片拖拽开始 - 关键重构：自定义拖拽预览图
   const handleInternalDragStart = (e: React.DragEvent, source: KnowledgeSource) => {
     e.dataTransfer.setData('sourceId', source.id);
     e.dataTransfer.effectAllowed = 'move';
     setIsDraggingInternal(true);
 
-    // 创建临时的“胶囊行”作为预览图
     const dragGhost = document.createElement('div');
     dragGhost.style.position = 'absolute';
     dragGhost.style.top = '-1000px';
@@ -211,16 +217,8 @@ const App: React.FC = () => {
       </div>
     `;
     document.body.appendChild(dragGhost);
-    
-    // 设置预览图中心位置
     e.dataTransfer.setDragImage(dragGhost, 20, 20);
-
-    // 下一帧移除辅助元素
-    setTimeout(() => {
-      if (dragGhost.parentNode) {
-        document.body.removeChild(dragGhost);
-      }
-    }, 0);
+    setTimeout(() => { if (dragGhost.parentNode) document.body.removeChild(dragGhost); }, 0);
   };
 
   const handleSendMessage = async () => {
@@ -294,7 +292,7 @@ const App: React.FC = () => {
         <div className="p-6 flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center mb-10 shrink-0">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white mr-3 shadow-lg shadow-blue-200"><IconDatabase className="w-5 h-5" /></div>
-            <span className="font-bold text-lg tracking-tight">所长的知识宝</span>
+            <span className="font-bold text-lg tracking-tight">AI知识库工具</span>
           </div>
           
           <nav className="space-y-1 mb-8 shrink-0">
@@ -387,15 +385,38 @@ const App: React.FC = () => {
         </div>
 
         <div className="p-4 border-t border-slate-100">
-          <button onClick={() => setIsAvatarOpen(true)} className="flex items-center space-x-3 w-full p-2 rounded-2xl hover:bg-slate-50 transition-all text-left group">
-            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0 shadow-inner group-hover:ring-2 group-hover:ring-blue-500/20 transition-all">
+          <div className="flex items-center space-x-3 w-full p-2 rounded-2xl hover:bg-slate-50 transition-all text-left group">
+            <button 
+              onClick={() => setIsAvatarOpen(true)}
+              className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0 shadow-inner group-hover:ring-2 group-hover:ring-blue-500/20 transition-all"
+            >
               {currentAvatar ? <img src={currentAvatar} className="w-full h-full object-cover" /> : <IconSettings className="m-auto mt-2.5 w-5 h-5 text-slate-400" />}
-            </div>
+            </button>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold truncate text-slate-900 group-hover:text-blue-600 transition-colors">{avatarName}</p>
+              {isEditingName ? (
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={avatarName}
+                  onChange={(e) => setAvatarName(e.target.value)}
+                  onBlur={() => setIsEditingName(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                  className="w-full text-sm font-bold bg-transparent border-b border-blue-400 outline-none text-slate-900 px-0 py-0.5"
+                />
+              ) : (
+                <p 
+                  onClick={(e) => { e.stopPropagation(); setIsEditingName(true); }}
+                  className="text-sm font-bold truncate text-slate-900 hover:text-blue-600 transition-colors cursor-pointer flex items-center"
+                >
+                  {avatarName}
+                  <svg className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-40 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </p>
+              )}
               <p className="text-[10px] text-blue-600 font-medium">Gemini 3 Pro Engine</p>
             </div>
-          </button>
+          </div>
         </div>
       </aside>
 
@@ -410,7 +431,6 @@ const App: React.FC = () => {
               <button onClick={() => setIsUploadOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-2xl text-sm font-bold flex items-center space-x-2 shadow-xl shadow-blue-100 transition-all active:scale-95"><IconPlus className="w-4 h-4" /><span>导入资料</span></button>
             </header>
 
-            {/* 灵动局部反馈 */}
             {(isDraggingFile || isDraggingInternal) && !dragOverPartitionId && (
               <div className="absolute inset-4 z-40 pointer-events-none animate-in fade-in duration-700">
                 <div className={`w-full h-full border-2 border-dashed rounded-[40px] shadow-[inset_0_0_80px_rgba(59,130,246,0.05)] ${isDraggingInternal ? 'border-slate-300 bg-slate-50/10' : 'border-blue-400/20 bg-blue-50/5'}`} />
